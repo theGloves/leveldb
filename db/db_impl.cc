@@ -4,14 +4,6 @@
 
 #include "db/db_impl.h"
 
-#include <algorithm>
-#include <atomic>
-#include <cstdint>
-#include <cstdio>
-#include <set>
-#include <string>
-#include <vector>
-
 #include "db/builder.h"
 #include "db/db_iter.h"
 #include "db/dbformat.h"
@@ -1210,6 +1202,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
 
   MutexLock l(&mutex_);
   writers_.push_back(&w);
+  // 类似CAS没有引入锁
   while (!w.done && &w != writers_.front()) {
     w.cv.Wait();
   }
@@ -1289,9 +1282,9 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   // Allow the group to grow up to a maximum size, but if the
   // original write is small, limit the growth so we do not slow
   // down the small write too much.
-  size_t max_size = 1 << 20;
+  size_t max_size = 1 << 20; // 1MB
   if (size <= (128 << 10)) {
-    max_size = size + (128 << 10);
+    max_size = size + (128 << 10); // origin + 128KB
   }
 
   *last_writer = first;
